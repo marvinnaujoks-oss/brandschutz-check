@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brandschutz Checkliste</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      color: #111827;
+      background-color: #f3f4f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+    }
+    .app {
+      max-width: 900px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #4b5563;
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    input[type="checkbox"] {
+      margin-top: 0.1rem;
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+    .footer {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+    .btn.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .progress {
+      font-size: 0.85rem;
+      color: #4b5563;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4338ca;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Brandschutz Checkliste</h1>
+    <div class="subtitle">
+      Zum Abhaken bei Begehungen & Kontrollen. Die Haken bleiben gespeichert.
+    </div>
+    <div id="progress" class="progress"></div>
+    <div id="cards"></div>
+    <div class="footer">
+      <button class="btn" id="resetBtn">Alle Haken zurücksetzen</button>
+      <button class="btn secondary" id="exportBtn">Checkliste als Text kopieren</button>
+    </div>
+  </div>
+
+  <script>
+    const sections = [
+      {
+        title: "Flucht- und Rettungswege",
+        key: "fluchtwege",
+        items: [
+          "Fluchtwege frei und durchgängig",
+          "Notausgänge unverschlossen",
+          "Kennzeichnung vollständig",
+          "Notbeleuchtung funktionsfähig"
+        ]
+      },
+      {
+        title: "Brandschutztüren",
+        key: "brandschutz",
+        items: [
+          "Tür schließt selbstständig",
+          "Fällt vollständig ins Schloss",
+          "Keine Keile",
+          "Dichtungen intakt"
+        ]
+      },
+      {
+        title: "Feuerlöscher",
+        key: "feuerloescher",
+        items: [
+          "Frei zugänglich",
+          "Prüfdatum gültig",
+          "Ausreichende Anzahl",
+          "Richtige Brandklassen"
+        ]
+      }
+    ];
+
+    const STORAGE_KEY = "brandschutz_check_app_v1";
+
+    function loadState() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveState(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function render() {
+      const container = document.getElementById("cards");
+      container.innerHTML = "";
+      const state = loadState();
+
+      let total = 0;
+      let done = 0;
+
+      sections.forEach((section) => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const header = document.createElement("h2");
+        header.textContent = section.title;
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+
+        const sectionState = state[section.key] || {};
+        const sectionTotal = section.items.length;
+        const sectionDone = section.items.filter((_, i) => sectionState[i]).length;
+
+        badge.textContent = `${sectionDone}/${sectionTotal}`;
+        header.appendChild(badge);
+        card.appendChild(header);
+
+        const list = document.createElement("div");
+        list.className = "items";
+
+        section.items.forEach((item, i) => {
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = !!sectionState[i];
+
+          checkbox.addEventListener("change", () => {
+            const current = loadState();
+            if (!current[section.key]) current[section.key] = {};
+            current[section.key][i] = checkbox.checked;
+            saveState(current);
+            render();
+          });
+
+          const label = document.createElement("label");
+          label.appendChild(checkbox);
+          label.appendChild(document.createTextNode(item));
+          list.appendChild(label);
+        });
+
+        card.appendChild(list);
+        container.appendChild(card);
+
+        total += sectionTotal;
+        done += sectionDone;
+      });
+
+      const progress = document.getElementById("progress");
+      const percent = Math.round((done / total) * 100);
+      progress.textContent = `Fortschritt: ${done}/${total} (${percent}%)`;
+    }
+
+    function resetAll() {
+      saveState({});
+      render();
+    }
+
+    function exportText() {
+      const state = loadState();
+      let text = "Brandschutz-Checkliste:\\n\\n";
+
+      sections.forEach((section) => {
+        text += section.title + "\\n";
+        const sectionState = state[section.key] || {};
+        section.items.forEach((item, i) => {
+          text += (sectionState[i] ? "[x] " : "[ ] ") + item + "\\n";
+        });
+        text += "\\n";
+      });
+
+      navigator.clipboard.writeText(text);
+      alert("Checkliste kopiert!");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("resetBtn").addEventListener("click", resetAll);
+      document.getElementById("exportBtn").addEventListener("click", exportText);
+      render();
+    });
+  </script>
+</body>
+</html>
