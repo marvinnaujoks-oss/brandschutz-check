@@ -19,13 +19,13 @@
       justify-content: center;
     }
     .app {
-      max-width: 900px;
+      max-width: 1000px;
       width: 100%;
     }
     h1 {
       text-align: center;
       font-size: 1.75rem;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
     }
     .subtitle {
       text-align: center;
@@ -53,7 +53,7 @@
       flex-direction: column;
       gap: 0.4rem;
     }
-    label {
+    label.checkbox-row {
       display: flex;
       align-items: flex-start;
       gap: 0.5rem;
@@ -98,79 +98,297 @@
       background: #eef2ff;
       color: #4338ca;
     }
+    .header-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+      gap: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+    .header-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .header-grid input {
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.9rem;
+    }
+    .areas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 0.75rem 0 0.5rem;
+    }
+    .area-pill {
+      border-radius: 999px;
+      padding: 0.25rem 0.8rem;
+      font-size: 0.85rem;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      cursor: pointer;
+    }
+    .area-pill.active {
+      background: #111827;
+      color: white;
+      border-color: #111827;
+    }
+    .area-pill.add {
+      background: #e5e7eb;
+      border-style: dashed;
+    }
+    textarea {
+      width: 100%;
+      min-height: 3rem;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+    .section-footer-label {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-bottom: 0.15rem;
+    }
+    .photo-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0.35rem 0 0.35rem;
+      font-size: 0.85rem;
+    }
+    .photo-row input[type="text"] {
+      flex: 1 1 180px;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <h1>Brandschutz Checkliste</h1>
     <div class="subtitle">
-      Zum Abhaken bei Begehungen & Kontrollen. Die Haken bleiben gespeichert.
+      Objektbezogene Begehung mit Bereichen, Häkchen, Bemerkungen & Fotoreferenz. Daten bleiben im Browser gespeichert.
     </div>
+
+    <!-- Objektdaten -->
+    <div class="card">
+      <h2>Objektdaten</h2>
+      <div class="header-grid">
+        <label>
+          Objekt / Gebäude
+          <input id="objektName" type="text" placeholder="z. B. Lagerhalle Nord" />
+        </label>
+        <label>
+          Adresse
+          <input id="objektAdresse" type="text" placeholder="Straße, Hausnummer, PLZ Ort" />
+        </label>
+        <label>
+          Datum der Begehung
+          <input id="objektDatum" type="date" />
+        </label>
+        <label>
+          Prüfer / Firma
+          <input id="objektPruefer" type="text" placeholder="z. B. M. Naujoks, Totalfeuerschutz" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Bereiche / Etagen -->
+    <div class="card">
+      <h2>Bereiche / Etagen</h2>
+      <div class="areas" id="areaContainer"></div>
+      <div class="progress" id="areaInfo"></div>
+    </div>
+
     <div id="progress" class="progress"></div>
     <div id="cards"></div>
+
     <div class="footer">
-      <button class="btn" id="resetBtn">Alle Haken zurücksetzen</button>
+      <button class="btn" id="resetAreaBtn">Nur aktuellen Bereich zurücksetzen</button>
+      <button class="btn secondary" id="resetAllBtn">Alles zurücksetzen</button>
       <button class="btn secondary" id="exportBtn">Checkliste als Text kopieren</button>
     </div>
   </div>
 
   <script>
+    const STORAGE_KEY = "brandschutz_check_v3";
+
     const sections = [
       {
         title: "Flucht- und Rettungswege",
         key: "fluchtwege",
         items: [
           "Fluchtwege frei und durchgängig",
-          "Notausgänge unverschlossen",
-          "Kennzeichnung vollständig",
-          "Notbeleuchtung funktionsfähig"
+          "Notausgänge unverschlossen / nicht zugestellt",
+          "Fluchtwegkennzeichnung vollständig",
+          "Not- / Sicherheitsbeleuchtung funktionsfähig"
         ]
       },
       {
-        title: "Brandschutztüren",
+        title: "Brandschutztüren / Rauchschutztüren",
         key: "brandschutz",
         items: [
-          "Tür schließt selbstständig",
-          "Fällt vollständig ins Schloss",
-          "Keine Keile",
-          "Dichtungen intakt"
+          "Türen schließen selbstständig",
+          "Türen fallen vollständig ins Schloss",
+          "Keine Keile oder unzulässigen Feststeller",
+          "Dichtungen vorhanden und unbeschädigt"
         ]
       },
       {
         title: "Feuerlöscher",
         key: "feuerloescher",
         items: [
-          "Frei zugänglich",
+          "Feuerlöscher frei zugänglich",
           "Prüfdatum gültig",
-          "Ausreichende Anzahl",
-          "Richtige Brandklassen"
+          "Ausreichende Anzahl vorhanden",
+          "Richtige Brandklassen vorhanden"
+        ]
+      },
+      {
+        title: "Hydranten / Löschwasser",
+        key: "hydranten",
+        items: [
+          "Hydranten / Wandhydranten zugänglich",
+          "Ventile funktionsfähig / nicht undicht",
+          "Schläuche unbeschädigt",
+          "Druck / Durchfluss (falls geprüft) ausreichend"
+        ]
+      },
+      {
+        title: "Organisatorischer Brandschutz",
+        key: "organisation",
+        items: [
+          "Brandschutzordnung vorhanden / aktuell",
+          "Unterweisungen der Beschäftigten aktuell",
+          "Verantwortlichkeiten (BSB, Evakuierungshelfer) benannt"
         ]
       }
     ];
 
-    const STORAGE_KEY = "brandschutz_check_app_v1";
+    const defaultAreas = [
+      "Gesamtes Objekt",
+      "EG",
+      "1. OG",
+      "2. OG",
+      "Keller",
+      "Außenbereich"
+    ];
 
     function loadState() {
       try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return {
+            objekt: {},
+            activeArea: "Gesamtes Objekt",
+            areas: {}
+          };
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed.areas) parsed.areas = {};
+        if (!parsed.activeArea) parsed.activeArea = "Gesamtes Objekt";
+        if (!parsed.objekt) parsed.objekt = {};
+        return parsed;
       } catch {
-        return {};
+        return {
+          objekt: {},
+          activeArea: "Gesamtes Objekt",
+          areas: {}
+        };
       }
     }
 
-    function saveState(data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    function saveState(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
-    function render() {
+    function ensureArea(state, areaName) {
+      if (!state.areas[areaName]) {
+        state.areas[areaName] = {
+          checks: {}, // { sectionKey: { index: bool } }
+          notes: {},  // { sectionKey: string }
+          photos: {}  // { sectionKey: { hasPhoto: bool, ref: string } }
+        };
+      } else {
+        if (!state.areas[areaName].checks) state.areas[areaName].checks = {};
+        if (!state.areas[areaName].notes) state.areas[areaName].notes = {};
+        if (!state.areas[areaName].photos) state.areas[areaName].photos = {};
+      }
+    }
+
+    function getAllAreas(state) {
+      const existing = Object.keys(state.areas || {});
+      const merged = [...defaultAreas];
+      existing.forEach(a => {
+        if (!merged.includes(a)) merged.push(a);
+      });
+      return merged;
+    }
+
+    function renderAreas(state) {
+      const areaContainer = document.getElementById("areaContainer");
+      areaContainer.innerHTML = "";
+      const areas = getAllAreas(state);
+
+      areas.forEach(name => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.textContent = name;
+        pill.className = "area-pill" + (state.activeArea === name ? " active" : "");
+        pill.addEventListener("click", () => {
+          const s = loadState();
+          s.activeArea = name;
+          ensureArea(s, name);
+          saveState(s);
+          renderAll();
+        });
+        areaContainer.appendChild(pill);
+      });
+
+      const addPill = document.createElement("button");
+      addPill.type = "button";
+      addPill.textContent = "+ Bereich hinzufügen";
+      addPill.className = "area-pill add";
+      addPill.addEventListener("click", () => {
+        const name = prompt("Name des neuen Bereichs (z. B. Dachgeschoss, Halle 2):");
+        if (!name) return;
+        const s = loadState();
+        ensureArea(s, name);
+        s.activeArea = name;
+        saveState(s);
+        renderAll();
+      });
+      areaContainer.appendChild(addPill);
+
+      const info = document.getElementById("areaInfo");
+      info.textContent = "Aktueller Bereich: " + state.activeArea;
+    }
+
+    function renderObjektHeader(state) {
+      const obj = state.objekt || {};
+      document.getElementById("objektName").value = obj.name || "";
+      document.getElementById("objektAdresse").value = obj.adresse || "";
+      document.getElementById("objektDatum").value = obj.datum || "";
+      document.getElementById("objektPruefer").value = obj.pruefer || "";
+    }
+
+    function renderChecklist(state) {
       const container = document.getElementById("cards");
       container.innerHTML = "";
-      const state = loadState();
+
+      ensureArea(state, state.activeArea);
+      const areaData = state.areas[state.activeArea];
 
       let total = 0;
       let done = 0;
 
-      sections.forEach((section) => {
+      sections.forEach(section => {
         const card = document.createElement("div");
         card.className = "card";
 
@@ -180,9 +398,9 @@
         const badge = document.createElement("span");
         badge.className = "badge";
 
-        const sectionState = state[section.key] || {};
+        const sectionChecks = areaData.checks[section.key] || {};
         const sectionTotal = section.items.length;
-        const sectionDone = section.items.filter((_, i) => sectionState[i]).length;
+        const sectionDone = section.items.filter((_, i) => sectionChecks[i]).length;
 
         badge.textContent = `${sectionDone}/${sectionTotal}`;
         header.appendChild(badge);
@@ -192,25 +410,103 @@
         list.className = "items";
 
         section.items.forEach((item, i) => {
+          const label = document.createElement("label");
+          label.className = "checkbox-row";
+
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
-          checkbox.checked = !!sectionState[i];
+          checkbox.checked = !!sectionChecks[i];
 
           checkbox.addEventListener("change", () => {
-            const current = loadState();
-            if (!current[section.key]) current[section.key] = {};
-            current[section.key][i] = checkbox.checked;
-            saveState(current);
-            render();
+            const s = loadState();
+            ensureArea(s, s.activeArea);
+            if (!s.areas[s.activeArea].checks[section.key]) {
+              s.areas[s.activeArea].checks[section.key] = {};
+            }
+            s.areas[s.activeArea].checks[section.key][i] = checkbox.checked;
+            saveState(s);
+            renderAll();
           });
 
-          const label = document.createElement("label");
+          const span = document.createElement("span");
+          span.textContent = item;
+
           label.appendChild(checkbox);
-          label.appendChild(document.createTextNode(item));
+          label.appendChild(span);
           list.appendChild(label);
         });
 
         card.appendChild(list);
+
+        // Foto-Referenz
+        const photoLabelRow = document.createElement("div");
+        photoLabelRow.className = "section-footer-label";
+        photoLabelRow.textContent = "Foto-Referenz (z. B. Dateiname, Ordner, Hinweis aus der Kamera-App):";
+
+        const photoRow = document.createElement("div");
+        photoRow.className = "photo-row";
+
+        const photoInfo = areaData.photos[section.key] || { hasPhoto: false, ref: "" };
+
+        const photoCheckbox = document.createElement("input");
+        photoCheckbox.type = "checkbox";
+        photoCheckbox.checked = !!photoInfo.hasPhoto;
+
+        const photoCheckboxLabel = document.createElement("span");
+        photoCheckboxLabel.textContent = "Foto aufgenommen";
+
+        const photoText = document.createElement("input");
+        photoText.type = "text";
+        photoText.placeholder = "z. B. IMG_1234.jpg – Flur 2. OG rechts";
+        photoText.value = photoInfo.ref || "";
+
+        photoCheckbox.addEventListener("change", () => {
+          const s = loadState();
+          ensureArea(s, s.activeArea);
+          if (!s.areas[s.activeArea].photos[section.key]) {
+            s.areas[s.activeArea].photos[section.key] = { hasPhoto: false, ref: "" };
+          }
+          s.areas[s.activeArea].photos[section.key].hasPhoto = photoCheckbox.checked;
+          saveState(s);
+        });
+
+        photoText.addEventListener("change", () => {
+          const s = loadState();
+          ensureArea(s, s.activeArea);
+          if (!s.areas[s.activeArea].photos[section.key]) {
+            s.areas[s.activeArea].photos[section.key] = { hasPhoto: false, ref: "" };
+          }
+          s.areas[s.activeArea].photos[section.key].ref = photoText.value;
+          saveState(s);
+        });
+
+        photoRow.appendChild(photoCheckbox);
+        photoRow.appendChild(photoCheckboxLabel);
+        photoRow.appendChild(photoText);
+
+        card.appendChild(photoLabelRow);
+        card.appendChild(photoRow);
+
+        // Bemerkungen
+        const footerLabel = document.createElement("div");
+        footerLabel.className = "section-footer-label";
+        footerLabel.textContent = "Bemerkungen / besondere Feststellungen in diesem Bereich:";
+
+        const textarea = document.createElement("textarea");
+        textarea.value = areaData.notes[section.key] || "";
+        textarea.placeholder = "z. B. ‚Fluchtweg im 2. OG teilweise zugestellt (Kartons). Foto siehe Referenz oben.‘";
+
+        textarea.addEventListener("change", () => {
+          const s = loadState();
+          ensureArea(s, s.activeArea);
+          if (!s.areas[s.activeArea].notes) s.areas[s.activeArea].notes = {};
+          s.areas[s.activeArea].notes[section.key] = textarea.value;
+          saveState(s);
+        });
+
+        card.appendChild(footerLabel);
+        card.appendChild(textarea);
+
         container.appendChild(card);
 
         total += sectionTotal;
@@ -218,37 +514,106 @@
       });
 
       const progress = document.getElementById("progress");
-      const percent = Math.round((done / total) * 100);
-      progress.textContent = `Fortschritt: ${done}/${total} (${percent}%)`;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+      progress.textContent = `Gesamt-Fortschritt im Bereich „${state.activeArea}“: ${done}/${total} (${percent} %)`;
+    }
+
+    function renderAll() {
+      const state = loadState();
+      ensureArea(state, state.activeArea);
+      renderObjektHeader(state);
+      renderAreas(state);
+      renderChecklist(state);
+    }
+
+    function resetCurrentArea() {
+      const state = loadState();
+      if (state.areas[state.activeArea]) {
+        state.areas[state.activeArea] = { checks: {}, notes: {}, photos: {} };
+        saveState(state);
+        renderAll();
+      }
     }
 
     function resetAll() {
-      saveState({});
-      render();
+      if (!confirm("Wirklich alle Bereiche, Häkchen, Fotos und Bemerkungen löschen?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      renderAll();
     }
 
     function exportText() {
       const state = loadState();
-      let text = "Brandschutz-Checkliste:\\n\\n";
+      let lines = [];
+      lines.push("Brandschutz-Checkliste");
+      lines.push("");
+      lines.push("Objekt: " + (state.objekt?.name || ""));
+      lines.push("Adresse: " + (state.objekt?.adresse || ""));
+      lines.push("Datum: " + (state.objekt?.datum || ""));
+      lines.push("Prüfer/Firma: " + (state.objekt?.pruefer || ""));
+      lines.push("");
 
-      sections.forEach((section) => {
-        text += section.title + "\\n";
-        const sectionState = state[section.key] || {};
-        section.items.forEach((item, i) => {
-          text += (sectionState[i] ? "[x] " : "[ ] ") + item + "\\n";
+      const areas = getAllAreas(state);
+      areas.forEach(area => {
+        if (!state.areas[area]) return;
+        lines.push("=== Bereich: " + area + " ===");
+        const areaData = state.areas[area];
+
+        sections.forEach(section => {
+          lines.push("  - " + section.title);
+          const sectionChecks = areaData.checks[section.key] || {};
+          const photoInfo = areaData.photos[section.key] || {};
+
+          section.items.forEach((item, i) => {
+            const mark = sectionChecks[i] ? "[x]" : "[ ]";
+            lines.push("      " + mark + " " + item);
+          });
+
+          if (photoInfo.hasPhoto || (photoInfo.ref && photoInfo.ref.trim())) {
+            lines.push("      Foto: " + (photoInfo.ref?.trim() || "(Foto aufgenommen, keine Referenz eingetragen)"));
+          }
+
+          const note = areaData.notes[section.key];
+          if (note && note.trim()) {
+            lines.push("      Bemerkungen: " + note.trim());
+          }
+          lines.push("");
         });
-        text += "\\n";
+
+        lines.push("");
       });
 
-      navigator.clipboard.writeText(text);
-      alert("Checkliste kopiert!");
+      const text = lines.join("\n");
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Die Checkliste wurde als Text in die Zwischenablage kopiert. Du kannst sie jetzt z. B. in ein Protokoll oder eine E-Mail einfügen.");
+      }).catch(() => {
+        alert("Konnte nicht automatisch kopieren. Bitte auf einem Desktop-Browser erneut versuchen.");
+      });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("resetBtn").addEventListener("click", resetAll);
+      // Objektdaten speichern
+      const objInputs = [
+        ["objektName", "name"],
+        ["objektAdresse", "adresse"],
+        ["objektDatum", "datum"],
+        ["objektPruefer", "pruefer"]
+      ];
+      objInputs.forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        el.addEventListener("change", () => {
+          const state = loadState();
+          if (!state.objekt) state.objekt = {};
+          state.objekt[key] = el.value;
+          saveState(state);
+        });
+      });
+
+      document.getElementById("resetAreaBtn").addEventListener("click", resetCurrentArea);
+      document.getElementById("resetAllBtn").addEventListener("click", resetAll);
       document.getElementById("exportBtn").addEventListener("click", exportText);
-      render();
+
+      renderAll();
     });
   </script>
 </body>
-</html>
+</html>     
